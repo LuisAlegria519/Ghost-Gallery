@@ -63,12 +63,12 @@ export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState<Record<string, any>[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('mock_submissions');
+    const saved = localStorage.getItem('mock_submissions_v3');
     if (saved) {
       setSubmissions(JSON.parse(saved));
     } else {
       setSubmissions(DEFAULT_MOCK);
-      localStorage.setItem('mock_submissions', JSON.stringify(DEFAULT_MOCK));
+      localStorage.setItem('mock_submissions_v3', JSON.stringify(DEFAULT_MOCK));
     }
   }, []);
 
@@ -90,12 +90,12 @@ export default function AdminDashboard() {
       updated = submissions.map(s => s.id === id ? { ...s, status: action } : s);
     }
     setSubmissions(updated);
-    localStorage.setItem('mock_submissions', JSON.stringify(updated));
+    localStorage.setItem('mock_submissions_v3', JSON.stringify(updated));
   };
 
   const loadDemoData = () => {
     setSubmissions(DEFAULT_MOCK);
-    localStorage.setItem('mock_submissions', JSON.stringify(DEFAULT_MOCK));
+    localStorage.setItem('mock_submissions_v3', JSON.stringify(DEFAULT_MOCK));
   };
 
   if (!isAuthenticated) {

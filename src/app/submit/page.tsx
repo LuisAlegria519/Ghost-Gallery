@@ -60,7 +60,7 @@ export default function SubmitPage() {
 
     function saveSubmission(finalUrl: string) {
       setTimeout(() => {
-        const saved = localStorage.getItem('mock_submissions');
+        const saved = localStorage.getItem('mock_submissions_v3');
         const submissions = saved ? JSON.parse(saved) : [];
         submissions.push({
           id: Math.random().toString(36).substr(2, 9),
@@ -74,7 +74,7 @@ export default function SubmitPage() {
           status: 'pending',
           url: finalUrl
         });
-        localStorage.setItem('mock_submissions', JSON.stringify(submissions));
+        localStorage.setItem('mock_submissions_v3', JSON.stringify(submissions));
 
         setIsSubmitting(false);
         setSuccess(true);
