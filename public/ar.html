@@ -40,12 +40,14 @@
     <a-scene 
       arjs="sourceType: webcam; debugUIEnabled: false;"
       vr-mode-ui="enabled: false"
-      renderer="alpha: true;"
+      renderer="alpha: true; antialias: true; logarithmicDepthBuffer: true; colorManagement: true; sortObjects: true;"
     >
-      <a-marker preset="hiro">
-        <a-box position="0 0.5 0" material="color: magenta; transparent: true; opacity: 0.8;" animation="property: rotation; to: 0 360 0; loop: true; dur: 5000"></a-box>
-        <a-text value="Ghost Gallery Art Placeholder" position="-1.5 1.5 0" color="cyan"></a-text>
-      </a-marker>
+      <!-- Dedicated pattern markers for each placement -->
+      <a-marker type="pattern" url="/markers/pattern-A.patt" id="marker-wall"></a-marker>
+      <a-marker type="pattern" url="/markers/pattern-B.patt" id="marker-floor"></a-marker>
+      <a-marker type="pattern" url="/markers/pattern-C.patt" id="marker-ceiling"></a-marker>
+      <a-marker type="pattern" url="/markers/pattern-D.patt" id="marker-floating"></a-marker>
+
       <a-entity camera></a-entity>
     </a-scene>
 
@@ -64,7 +66,6 @@
       document.getElementById('start-btn').addEventListener('click', function() {
         document.getElementById('start-screen').style.display = 'none';
         
-        // Force video play and check for errors
         const checkVideo = setInterval(() => {
           const video = document.querySelector('video');
           if (video) {
@@ -76,9 +77,157 @@
           }
         }, 500);
         
-        // Stop checking after 10 seconds to avoid infinite loop
         setTimeout(() => clearInterval(checkVideo), 10000);
+
+        loadArtworks();
       });
+
+      function loadArtworks() {
+        try {
+          const saved = localStorage.getItem('mock_submissions');
+          if (!saved) return;
+          
+          const submissions = JSON.parse(saved);
+          
+          const localArt = submissions.filter(s => 
+            s.building === building && 
+            s.floor.toString() === floor &&
+            (s.status === 'approved' || s.status === 'pending')
+          );
+
+          if (localArt.length === 0) return;
+
+          // Split into text and images
+          const textArt = localArt.filter(art => art.type === 'text');
+          const imageArt = localArt.filter(art => art.type === 'image');
+
+          // 1. RENDER TEXT PRIORITIZED IN CENTER
+          textArt.forEach((art, index) => {
+            const p = art.placement || 'wall';
+            let markerId = '';
+            if (p === 'wall') markerId = 'marker-wall';
+            else if (p === 'floor') markerId = 'marker-floor';
+            else if (p === 'ceiling') markerId = 'marker-ceiling';
+            else if (p === 'floating') markerId = 'marker-floating';
+            
+            const marker = document.getElementById(markerId);
+            if (!marker) return;
+
+            let rotation = '-90 0 0'; 
+            if (p === 'ceiling') rotation = '90 180 0';
+
+            // Text floats majestically above the exact center
+            const yPos = 1.0 + (index * 0.5); 
+            const zPos = 0; // DEAD CENTER
+            
+            let displayName = art.artist_name || art.instagram || 'Anonymous';
+            if (displayName.includes('@') === false && art.instagram) displayName = '@' + displayName;
+
+            const entityHtml = `<a-text value="${art.title}\\n- ${displayName}" align="center" position="0 ${yPos} ${zPos}" rotation="${rotation}" color="#00f3ff" scale="1.5 1.5 1.5"></a-text>`;
+            marker.insertAdjacentHTML('beforeend', entityHtml);
+          });
+
+          // 2. RENDER IMAGES IN COMPACT GRID
+          const placements = { floor: 0, wall: 0, ceiling: 0, floating: 0 };
+          const placementCounts = { floor: 0, wall: 0, ceiling: 0, floating: 0 };
+
+          imageArt.forEach(art => {
+            const p = art.placement || 'wall';
+            if (placementCounts[p] !== undefined) placementCounts[p]++;
+          });
+
+          imageArt.forEach((art) => {
+            const p = art.placement || 'wall';
+            
+            let markerId = '';
+            if (p === 'wall') markerId = 'marker-wall';
+            else if (p === 'floor') markerId = 'marker-floor';
+            else if (p === 'ceiling') markerId = 'marker-ceiling';
+            else if (p === 'floating') markerId = 'marker-floating';
+            
+            const marker = document.getElementById(markerId);
+            if (!marker) return;
+
+            const currentIdx = placements[p] || 0;
+            const totalInGroup = placementCounts[p] || 1;
+            
+            let baseScale = 3.0;
+            let gridSpacing = 3.5; 
+            let minRadius = 5.0;
+            let circularSpacing = 4.0;
+            
+            if (p === 'ceiling' || p === 'floor') {
+              baseScale = 6.0;
+              gridSpacing = 7.0; 
+              minRadius = 10.0;
+              circularSpacing = 8.0;
+            }
+
+            let xOffset = 0;
+            let zOffset = 0;
+
+            if (textArt.length > 0) {
+              // Circular Math: Arrange in a halo around the center poem
+              const angle = (currentIdx / totalInGroup) * Math.PI * 2;
+              
+              const dynamicRadius = (totalInGroup * circularSpacing) / (2 * Math.PI);
+              const radius = Math.max(minRadius, dynamicRadius);
+              
+              xOffset = Math.cos(angle) * radius;
+              zOffset = Math.sin(angle) * radius;
+            } else {
+              // Grid Math: Arrange in a compact 2D grid
+              const cols = Math.ceil(Math.sqrt(totalInGroup));
+              const row = Math.floor(currentIdx / cols);
+              const col = currentIdx % cols;
+              const rows = Math.ceil(totalInGroup / cols);
+              
+              xOffset = (col - (cols - 1) / 2) * gridSpacing;
+              zOffset = (row - (rows - 1) / 2) * gridSpacing;
+            }
+            
+            if (placements[p] !== undefined) placements[p]++;
+            
+            let yOffset = 0.05; 
+            let rotation = '-90 0 0'; 
+            
+            if (p === 'floor') {
+              yOffset = 0.02;
+            } else if (p === 'ceiling') {
+              yOffset = 0.08;
+              rotation = '90 180 0';
+            } else if (p === 'floating') {
+              yOffset = 1.0;
+            }
+
+            let displayName = art.artist_name || art.instagram || 'Anonymous';
+            if (displayName.includes('@') === false && art.instagram) displayName = '@' + displayName;
+
+            let entityHtml = '';
+            
+            if (art.type === 'image' && art.url) {
+              const anim = art.placement === 'floating' ? 'animation="property: position; dir: alternate; dur: 2000; easing: easeInOutSine; loop: true; to: '+xOffset+' '+(yOffset+0.3)+' '+zOffset+'"' : '';
+              
+              const zFightPreventer = (Math.random() * 0.01);
+              const finalY = yOffset + zFightPreventer;
+              
+              // Inject synchronously to prevent iOS Safari from garbage collecting the Image object
+              entityHtml = `
+                <a-entity position="${xOffset} ${finalY} ${zOffset}" rotation="${rotation}" ${anim}>
+                  <a-image src="${art.url}" position="0 0 0" width="${baseScale}" height="${baseScale}" transparent="true" alpha-test="0.5"></a-image>
+                  <a-text value="By ${displayName}" align="center" position="0 -${baseScale/2 + 0.3} 0" scale="0.6 0.6 0.6" color="white"></a-text>
+                </a-entity>
+              `;
+              marker.insertAdjacentHTML('beforeend', entityHtml);
+            }
+
+            marker.insertAdjacentHTML('beforeend', entityHtml);
+          });
+
+        } catch (e) {
+          console.error("Failed to load artworks", e);
+        }
+      }
     </script>
   </body>
 </html>

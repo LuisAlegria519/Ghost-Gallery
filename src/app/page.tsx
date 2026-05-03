@@ -28,8 +28,12 @@ export default function Home() {
           <Link href="/scan" className="glass-button primary">
             Scan QR Code
           </Link>
+
+          <Link href="/map" className="glass-button" style={{ backgroundColor: 'rgba(0, 243, 255, 0.25)', borderColor: 'rgba(0, 243, 255, 0.8)', color: '#ffffff', fontWeight: 'bold' }}>
+            Campus Map
+          </Link>
           
-          <Link href="/submit" className="glass-button">
+          <Link href="/submit" className="glass-button" style={{ backgroundColor: 'rgba(255, 0, 255, 0.2)', borderColor: 'rgba(255, 0, 255, 0.6)', color: '#ffffff', fontWeight: 'bold' }}>
             Submit Art
           </Link>
         </div>

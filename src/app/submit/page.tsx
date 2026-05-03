@@ -13,32 +13,73 @@ export default function SubmitPage() {
     setIsSubmitting(true);
     
     const formData = new FormData(e.currentTarget);
-    const artist = formData.get('artist_name') || 'Anonymous';
+    const artist = formData.get('artist_name') as string;
+    const instagram = formData.get('instagram') as string;
     const building = formData.get('building');
     const floor = formData.get('floor');
     const placement = formData.get('placement') || 'wall';
     
-    // Simulate upload delay for now
-    setTimeout(() => {
-      // Save mock submission to local storage so admin can see it
-      const saved = localStorage.getItem('mock_submissions');
-      const submissions = saved ? JSON.parse(saved) : [];
-      submissions.push({
-        id: Math.random().toString(36).substr(2, 9),
-        title: 'New Submission',
-        artist_name: artist as string,
-        building: building as string,
-        floor: parseInt(floor as string, 10),
-        placement: placement as string,
-        type: 'image',
-        status: 'pending',
-        url: 'https://via.placeholder.com/150?text=New+Art'
-      });
-      localStorage.setItem('mock_submissions', JSON.stringify(submissions));
+    const file = formData.get('file') as File;
+    
+    // Convert file to a compressed base64 string so it fits in localStorage
+    let fileUrl = 'https://via.placeholder.com/150?text=New+Art';
+    
+    if (file && file.size > 0) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 800; // Compress down to 800px max
+          
+          if (width > height && width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          } else if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress to JPEG with 70% quality to ensure it is incredibly small
+          fileUrl = canvas.toDataURL('image/jpeg', 0.7);
+          saveSubmission(fileUrl);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      saveSubmission(fileUrl);
+    }
 
-      setIsSubmitting(false);
-      setSuccess(true);
-    }, 2000);
+    function saveSubmission(finalUrl: string) {
+      setTimeout(() => {
+        const saved = localStorage.getItem('mock_submissions');
+        const submissions = saved ? JSON.parse(saved) : [];
+        submissions.push({
+          id: Math.random().toString(36).substr(2, 9),
+          title: 'New Submission',
+          artist_name: artist,
+          instagram: instagram,
+          building: building as string,
+          floor: parseInt(floor as string, 10),
+          placement: placement as string,
+          type: 'image',
+          status: 'pending',
+          url: finalUrl
+        });
+        localStorage.setItem('mock_submissions', JSON.stringify(submissions));
+
+        setIsSubmitting(false);
+        setSuccess(true);
+      }, 1000);
+    }
   };
 
   if (success) {

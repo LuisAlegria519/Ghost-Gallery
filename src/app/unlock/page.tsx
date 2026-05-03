@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 function UnlockLogic() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState('Unlocking...');
-  const [unlockedData, setUnlockedData] = useState<{b: string, f: string} | null>(null);
+  const [unlockedData, setUnlockedData] = useState<{b: string, f: string, isNew: boolean} | null>(null);
 
   useEffect(() => {
     const building = searchParams.get('b');
@@ -20,24 +19,28 @@ function UnlockLogic() {
     }
 
     try {
-      // Create unlock token valid for 365 days
       const unlocks = JSON.parse(localStorage.getItem('ghost_gallery_unlocks') || '{}');
-      
       const key = `${building}-${floor}`;
-      const expiry = new Date();
-      expiry.setDate(expiry.getDate() + 365); // 1 year from now
-
-      unlocks[key] = expiry.toISOString();
+      const now = new Date();
       
-      localStorage.setItem('ghost_gallery_unlocks', JSON.stringify(unlocks));
-      
-      setStatus(`Success!`);
-      setUnlockedData({ b: building, f: floor });
-      
+      if (unlocks[key] && new Date(unlocks[key]) > now) {
+        // Already unlocked and hasn't expired
+        setStatus(`Welcome Back!`);
+        setUnlockedData({ b: building, f: floor, isNew: false });
+      } else {
+        // New unlock
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + 365); // 1 year from now
+        unlocks[key] = expiry.toISOString();
+        localStorage.setItem('ghost_gallery_unlocks', JSON.stringify(unlocks));
+        
+        setStatus(`Success!`);
+        setUnlockedData({ b: building, f: floor, isNew: true });
+      }
     } catch (err) {
       setStatus('Failed to unlock. Please ensure you are not in private browsing mode.');
     }
-  }, [router, searchParams]);
+  }, [searchParams]);
 
   return (
     <div className="container" style={{ justifyContent: 'center' }}>
@@ -45,9 +48,16 @@ function UnlockLogic() {
         
         {unlockedData ? (
           <>
-            <h2 style={{ marginBottom: '16px', color: 'var(--accent-cyan)' }}>Area Unlocked!</h2>
+            {unlockedData.isNew ? (
+              <h2 style={{ marginBottom: '16px', color: 'var(--accent-cyan)' }}>New Area Unlocked!</h2>
+            ) : (
+              <h2 style={{ marginBottom: '16px', color: 'rgba(255, 0, 255, 0.8)' }}>Welcome Back!</h2>
+            )}
             <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-              You have successfully unlocked Building {unlockedData.b}, Floor {unlockedData.f} for the next year.
+              {unlockedData.isNew 
+                ? `You have successfully unlocked Building ${unlockedData.b}, Floor ${unlockedData.f} for the next year.`
+                : `You've already unlocked Building ${unlockedData.b}, Floor ${unlockedData.f}! Good to see you again.`
+              }
             </p>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '0.9rem' }}>
               When you're ready, enter the gallery to see the art through your camera.
